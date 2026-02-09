@@ -1,4 +1,4 @@
-package Clock.StopWatch;
+package Clock.Stopwatch;
 
 public class Stopwatch implements Runnable {
     private String elapsedTime;
