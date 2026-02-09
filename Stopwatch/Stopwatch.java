@@ -1,12 +1,10 @@
-package Clock.Stopwatch;
+package Clock.StopWatch;
 
 public class Stopwatch implements Runnable {
-    private String startTime;
     private String elapsedTime;
     private int laps = 0;
     boolean running = true;
-    Stopwatch(String startTime) {
-        this.startTime = startTime;
+    Stopwatch() {
         this.elapsedTime = "00:00:00:000";
     }
     @Override
