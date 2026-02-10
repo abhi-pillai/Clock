@@ -1,45 +1,81 @@
 package Clock.Stopwatch;
-
+import java.util.NoSuchElementException;
+import java.util.Scanner;
 public class Stopwatch implements Runnable {
     private String elapsedTime;
     private int laps = 0;
     boolean running = true;
+    Scanner sc = new Scanner(System.in);
+    private final Object consoleLock = new Object();
+    private volatile boolean printingLap = false;
     Stopwatch() {
         this.elapsedTime = "00:00:00:000";
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            synchronized (consoleLock) {
+                running = false;
+                System.out.println("\nStopwatch stopped");
+            }
+        }));
+
     }
+
     @Override
     public void run() {
         long startTime = System.nanoTime();
 
+        System.out.println("Press Enter to record a lap time. 'Ctrl + C / Cmd + C' to stop the stopwatch.");
+
+        new Thread(this::control).start();
+
         while (running) {
-            long elapsedNanos = System.nanoTime() - startTime;
-            long elapsedMillis = elapsedNanos / 1_000_000;
+            if (!printingLap) {
+                long elapsedMillis = (System.nanoTime() - startTime) / 1_000_000;
 
-            long centiseconds = (elapsedMillis / 10) % 100;
-            long seconds = (elapsedMillis / 1000) % 60;
-            long minutes = (elapsedMillis / 60000) % 60;
-            long hours = elapsedMillis / 3600000;
+                long cs = (elapsedMillis / 10) % 100;
+                long s = (elapsedMillis / 1000) % 60;
+                long m = (elapsedMillis / 60000) % 60;
+                long h = elapsedMillis / 3600000;
 
-            System.out.printf(
-                "\r%02d:%02d:%02d:%02d",
-                hours, minutes, seconds, centiseconds
-            );
-            elapsedTime = String.format("%02d:%02d:%02d:%02d", hours, minutes, seconds, centiseconds);
-            try {
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
-                System.out.println("Stopwatch interrupted: " + e.getMessage());
+                elapsedTime = String.format("%02d:%02d:%02d:%02d", h, m, s, cs);
+
+                synchronized (consoleLock) {
+                    redraw();
+                }
             }
 
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException ignored) {}
         }
-        System.out.println("\nStopwatch stopped" );
+
     }
 
-    public void lap() {
-        laps++;
-        System.out.println("\nLap " + laps + ": " + elapsedTime);
+    private void redraw() {
+        System.out.print("\r\033[2K" + elapsedTime);
+        System.out.flush();
     }
-    public void stop() {
+
+
+    public synchronized void lap() {
+        printingLap = true;  // stop redraw temporarily
+        System.out.println("\nLap " + (++laps) + ": " + elapsedTime);
+        printingLap = false; // resume redraw
+    }
+
+    public synchronized void stop() {
         running = false;
     }
+
+    private void control() {
+        try {
+            while (running && sc.hasNextLine()) {
+                sc.nextLine(); // Enter = lap
+                lap();
+            }
+        } catch (Exception ignored) {
+            // Happens when Ctrl+C closes System.in
+        }
+    }
+
+
 }
